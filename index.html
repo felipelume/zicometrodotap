@@ -2,127 +2,291 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zicômetro do TAP</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
             padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
+        
         h1 {
-            color: orange;
+            text-align: center;
+            color: #ff6b35;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
-        #timer {
-            font-size: 24px;
+        
+        .cronometro-section {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 3px solid #ff6b35;
+        }
+        
+        .tempo-display {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b35;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #ff6b35;
+        }
+        
+        .controles {
             margin: 20px 0;
         }
-        button, input {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 10px;
-        }
-        table {
-            margin: 30px auto;
-            border-collapse: collapse;
-            width: 80%;
-        }
-        th, td {
+        
+        input[type="text"] {
             padding: 10px;
-            border: 1px solid #ccc;
+            font-size: 16px;
+            border: 2px solid #ff6b35;
+            border-radius: 5px;
+            margin: 10px;
+            width: 200px;
         }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #e55a2b;
+        }
+        
+        .tabela-section {
+            margin-top: 40px;
+        }
+        
+        .tabela-section h2 {
+            color: #ff6b35;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
         th {
-            background-color: #eee;
+            background: #ff6b35;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        tr:hover {
+            background: #fff3e0;
+        }
+        
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            background: #28a745;
+            color: white;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
-    <h1>Zicômetro do TAP</h1>
-    <div id="timer">Carregando cronômetro...</div>
-    <input type="text" id="nameInput" placeholder="Quem zicou?" />
-    <button onclick="resetTimer()">Resetar Zicômetro</button>
-
-    <h2>Últimos 100 Tempos</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Duração</th>
-                <th>Data do Reset</th>
-                <th>Zicado por</th>
-            </tr>
-        </thead>
-        <tbody id="history"></tbody>
-    </table>
+    <div class="container">
+        <h1>Zicômetro do TAP</h1>
+        
+        <div class="cronometro-section">
+            <div id="status-text">Estamos a <span id="tempo-corrido">0 dias, 0 horas, 0 minutos</span> sem zicar nenhum jogo</div>
+            <div class="tempo-display" id="tempo-display">0 dias, 0 horas, 0 minutos</div>
+            
+            <div class="controles">
+                <input type="text" id="nome-zicador" placeholder="Digite seu nome" maxlength="50">
+                <button onclick="resetarCronometro()">Resetar Cronômetro (Jogo Zicado!)</button>
+            </div>
+        </div>
+        
+        <div class="tabela-section">
+            <h2>Histórico dos Últimos 100 Resultados</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Data/Hora do Reset</th>
+                        <th>Tempo sem Zicar</th>
+                        <th>Zicado por</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-historico">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #666;">Nenhum reset registrado ainda</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <script>
-        // Inicializa ou recupera o startTime
-        let startTime = localStorage.getItem("startTime");
-        if (!startTime) {
-            startTime = Date.now();
-            localStorage.setItem("startTime", startTime);
-        } else {
-            startTime = parseInt(startTime);
+        let inicioTempo = new Date();
+        let historico = [];
+        let contadorId = 1;
+
+        // Carregar dados salvos
+        function carregarDados() {
+            const dadosSalvos = JSON.parse(localStorage.getItem('zicometroData') || '{}');
+            if (dadosSalvos.inicioTempo) {
+                inicioTempo = new Date(dadosSalvos.inicioTempo);
+            } else {
+                // Se não há dados salvos, inicializar com o momento atual
+                inicioTempo = new Date();
+                salvarDados();
+            }
+            if (dadosSalvos.historico) {
+                historico = dadosSalvos.historico;
+                contadorId = dadosSalvos.contadorId || 1;
+                atualizarTabela();
+            }
         }
 
-        let history = JSON.parse(localStorage.getItem("history")) || [];
-
-        function updateTimer() {
-            const now = Date.now();
-            const diff = now - startTime;
-
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-            const minutes = Math.floor((diff / (1000 * 60)) % 60);
-
-            document.getElementById("timer").textContent =
-                `Estamos a ${days} dias, ${hours} horas e ${minutes} minutos sem zicar nenhum jogo`;
+        // Salvar dados
+        function salvarDados() {
+            const dados = {
+                inicioTempo: inicioTempo.toISOString(),
+                historico: historico,
+                contadorId: contadorId
+            };
+            localStorage.setItem('zicometroData', JSON.stringify(dados));
         }
 
-        function formatDateBR(date) {
-            return date.toLocaleDateString("pt-BR") + ' ' + date.toLocaleTimeString("pt-BR");
+        // Calcular tempo decorrido
+        function calcularTempo() {
+            const agora = new Date();
+            const diferenca = agora - inicioTempo;
+            
+            const dias = Math.floor(diferenca / (1000 * 60 * 60 * 24));
+            const horas = Math.floor((diferenca % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutos = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
+            
+            return { dias, horas, minutos };
         }
 
-        function resetTimer() {
-            const name = document.getElementById("nameInput").value.trim();
-            if (!name) {
-                alert("Por favor, digite o nome de quem zicou.");
+        // Atualizar display
+        function atualizarDisplay() {
+            const tempo = calcularTempo();
+            const textoTempo = `${tempo.dias} dias, ${tempo.horas} horas, ${tempo.minutos} minutos`;
+            
+            document.getElementById('tempo-corrido').textContent = textoTempo;
+            document.getElementById('tempo-display').textContent = textoTempo;
+        }
+
+        // Resetar cronômetro
+        function resetarCronometro() {
+            const nome = document.getElementById('nome-zicador').value.trim() || 'Anônimo';
+            const agora = new Date();
+            const tempoSemZicar = calcularTempo();
+            
+            // Adicionar ao histórico
+            const novoRegistro = {
+                id: contadorId++,
+                dataHora: agora.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }),
+                tempoSemZicar: `${tempoSemZicar.dias} dias, ${tempoSemZicar.horas} horas, ${tempoSemZicar.minutos} minutos`,
+                zicadoPor: nome
+            };
+            
+            historico.unshift(novoRegistro);
+            
+            // Manter apenas os últimos 100 registros
+            if (historico.length > 100) {
+                historico = historico.slice(0, 100);
+            }
+            
+            // Resetar o cronômetro
+            inicioTempo = agora;
+            
+            // Limpar campo de nome
+            document.getElementById('nome-zicador').value = '';
+            
+            // Atualizar tabela e salvar dados
+            atualizarTabela();
+            salvarDados();
+            
+            // Atualizar display imediatamente
+            atualizarDisplay();
+        }
+
+        // Atualizar tabela
+        function atualizarTabela() {
+            const tbody = document.getElementById('tabela-historico');
+            
+            if (historico.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">Nenhum reset registrado ainda</td></tr>';
                 return;
             }
-
-            const now = Date.now();
-            const lastDuration = now - startTime;
-            const days = Math.floor(lastDuration / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((lastDuration / (1000 * 60 * 60)) % 24);
-            const minutes = Math.floor((lastDuration / (1000 * 60)) % 60);
-            const durationStr = `${days}d ${hours}h ${minutes}m`;
-            const resetDate = formatDateBR(new Date(now));
-
-            history.unshift({ duration: durationStr, date: resetDate, zicador: name });
-            if (history.length > 100) history.pop();
-
-            localStorage.setItem("history", JSON.stringify(history));
-
-            startTime = now;
-            localStorage.setItem("startTime", startTime.toString());
-
-            updateTimer();
-            updateHistoryTable();
-            document.getElementById("nameInput").value = "";
-        }
-
-        function updateHistoryTable() {
-            const tbody = document.getElementById("history");
-            tbody.innerHTML = "";
-            history.forEach((entry, index) => {
-                const row = `<tr><td>${index + 1}</td><td>${entry.duration}</td><td>${entry.date}</td><td>${entry.zicador}</td></tr>`;
-                tbody.innerHTML += row;
+            
+            tbody.innerHTML = '';
+            historico.forEach((registro, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${registro.dataHora}</td>
+                    <td>${registro.tempoSemZicar}</td>
+                    <td>${registro.zicadoPor}</td>
+                `;
             });
         }
 
-        updateTimer();
-        updateHistoryTable();
-        setInterval(updateTimer, 60000); // Atualiza a cada minuto
+        // Inicializar
+        carregarDados();
+        atualizarDisplay();
+        
+        // Atualizar a cada minuto
+        setInterval(atualizarDisplay, 60000);
+        
+        // Atualizar a cada segundo para uma experiência mais fluida
+        setInterval(atualizarDisplay, 1000);
     </script>
 </body>
 </html>
