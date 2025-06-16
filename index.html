@@ -17,13 +17,8 @@
             font-size: 24px;
             margin: 20px 0;
         }
-        button {
+        button, input {
             padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        input {
-            padding: 10px;
             font-size: 16px;
             margin: 10px;
         }
@@ -43,7 +38,7 @@
 </head>
 <body>
     <h1>Zicômetro do TAP</h1>
-    <div id="timer"></div>
+    <div id="timer">Carregando cronômetro...</div>
     <input type="text" id="nameInput" placeholder="Quem zicou?" />
     <button onclick="resetTimer()">Resetar Zicômetro</button>
 
@@ -58,4 +53,76 @@
             </tr>
         </thead>
         <tbody id="history"></tbody>
-    </t
+    </table>
+
+    <script>
+        // Inicializa ou recupera o startTime
+        let startTime = localStorage.getItem("startTime");
+        if (!startTime) {
+            startTime = Date.now();
+            localStorage.setItem("startTime", startTime);
+        } else {
+            startTime = parseInt(startTime);
+        }
+
+        let history = JSON.parse(localStorage.getItem("history")) || [];
+
+        function updateTimer() {
+            const now = Date.now();
+            const diff = now - startTime;
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / (1000 * 60)) % 60);
+
+            document.getElementById("timer").textContent =
+                `Estamos a ${days} dias, ${hours} horas e ${minutes} minutos sem zicar nenhum jogo`;
+        }
+
+        function formatDateBR(date) {
+            return date.toLocaleDateString("pt-BR") + ' ' + date.toLocaleTimeString("pt-BR");
+        }
+
+        function resetTimer() {
+            const name = document.getElementById("nameInput").value.trim();
+            if (!name) {
+                alert("Por favor, digite o nome de quem zicou.");
+                return;
+            }
+
+            const now = Date.now();
+            const lastDuration = now - startTime;
+            const days = Math.floor(lastDuration / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((lastDuration / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((lastDuration / (1000 * 60)) % 60);
+            const durationStr = `${days}d ${hours}h ${minutes}m`;
+            const resetDate = formatDateBR(new Date(now));
+
+            history.unshift({ duration: durationStr, date: resetDate, zicador: name });
+            if (history.length > 100) history.pop();
+
+            localStorage.setItem("history", JSON.stringify(history));
+
+            startTime = now;
+            localStorage.setItem("startTime", startTime.toString());
+
+            updateTimer();
+            updateHistoryTable();
+            document.getElementById("nameInput").value = "";
+        }
+
+        function updateHistoryTable() {
+            const tbody = document.getElementById("history");
+            tbody.innerHTML = "";
+            history.forEach((entry, index) => {
+                const row = `<tr><td>${index + 1}</td><td>${entry.duration}</td><td>${entry.date}</td><td>${entry.zicador}</td></tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        updateTimer();
+        updateHistoryTable();
+        setInterval(updateTimer, 60000); // Atualiza a cada minuto
+    </script>
+</body>
+</html>
